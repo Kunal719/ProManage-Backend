@@ -10,6 +10,7 @@ const errorHandlerMiddleware = require('./middleware/error-handler');
 const notFoundMiddleware = require('./middleware/not-found');
 
 const userRoutes = require('./routes/userRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 // Connect database
 const connectDB = require('./db/connect');
@@ -44,6 +45,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1/users/', userRoutes);
+app.use('/api/v1/user/tasks/', taskRoutes);
 
 // Middlewares
 app.use(notFoundMiddleware);

@@ -1,98 +1,78 @@
 const { StatusCodes } = require('http-status-codes');
 const CustomError = require('../errors');
 const User = require('../models/User');
-const { createJWT, createUserToken, checkPermissions } = require('../util');
+const { createJWT, createUserToken } = require('../util');
 
 const register = async (req, res) => {
-    const { name, username, email, password } = req.body;
+  const { name, email, password, confirmPassword } = req.body;
 
-    if(!name || !username || !email || !password) {
-        throw new CustomError.BadRequestError('Please provide all values');
-    }
+  if (!name || !email || !password || !confirmPassword) {
+    throw new CustomError.BadRequestError('Please provide all values');
+  }
 
-    // If email exists
-    const existingEmail = await User.findOne({ email });
-    if(existingEmail) {
-        throw new CustomError.BadRequestError('Email already exists');
-    }
+  // Password confirmation check
+  if (password !== confirmPassword) {
+    throw new CustomError.BadRequestError('Passwords do not match');
+  }
 
-    // If username exists
-    const existingUsername = await User.findOne({ username });
-    if(existingUsername) {
-        throw new CustomError.BadRequestError('Username has already been taken');
-    }
+  // Existing email check
+  const existingEmail = await User.findOne({ email });
+  if (existingEmail) {
+    throw new CustomError.BadRequestError('Email already exists');
+  }
 
-    if(password.length < 6) {
-        throw new CustomError.BadRequestError('Password must be at least 6 characters long');
-    }
+  // Minimum password length check (unchanged)
+  if (password.length < 6) {
+    throw new CustomError.BadRequestError('Password must be at least 6 characters long');
+  }
 
-    const newUser = await User.create({ name, username, email, password });
+  // User creation with email (username removed)
+  const newUser = await User.create({ name, email, password });
+  const tokenUser = createUserToken(newUser);
+  const token = createJWT(tokenUser);
 
-    // Setup JWT
-    const tokenUser = createUserToken(newUser);
+  res.status(StatusCodes.CREATED).json({ user: tokenUser, token });
+};
 
-    // Create JWT token
-    const token = createJWT(tokenUser);
+const login = async (req, res, next) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    throw new CustomError.BadRequestError(
+      'Please provide your email and password to login'
+    );
+  }
 
-    res.status(StatusCodes.CREATED).json({ user: tokenUser, token });
-}
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new CustomError.UnauthenticatedError('Incorrect email/password');
+  }
 
-const updateUserImageAndLocation = async (req, res) => {
-    const { location } = req.body;
+  // Check Password
+  const checkPassword = await user.checkPassword(password);
+  if (!checkPassword) {
+    throw new CustomError.UnauthenticatedError('Incorrect email/password');
+  }
 
-    if(!location) {
-        throw new CustomError.BadRequestError('Please provide your location');
-    }
+  // If everything is fine
+  const tokenUser = createUserToken(user);
 
-    const userID = req.params.uid;
+  // create jwt
+  const token = createJWT(tokenUser);
 
-    const user = await User.findOne({ _id: userID });
+  res.status(StatusCodes.OK).json({ user: tokenUser, token: token });
+};
 
-    // If user doesnt exist
-    if(!user) {
-        throw new CustomError.NotFoundError('User not found');
-    }
+const logout = async (req, res, next) => {
+  res.status(StatusCodes.OK).json({ msg: 'Logged out succesfully' });
+};
 
-    checkPermissions(req.user, user._id);
 
-    //  console.log(userID);
-
-    user.image = req.file.path;
-    user.location = location;
-
-    await user.save();
-
-    res.status(StatusCodes.OK).json({ msg: 'User updated successfully' });
-}
-
-const updateUserInterests = async (req, res) => {
-    const {selectedOptions} = req.body;
-    // console.log(selectedOptions);
-
-    const userID = req.params.uid;
-
-    const user = await User.findOne({ _id: userID });
-
-    // If user doesnt exist
-    if(!user) {
-        throw new CustomError.NotFoundError('User not found');
-    }
-
-    checkPermissions(req.user, user._id);
-
-    console.log(userID);
-
-    user.interests = selectedOptions;
-
-    await user.save();
-
-    res.status(StatusCodes.OK).json({ msg: 'User updated successfully' });
-}
+//  checkPermissions(req.user, user._id);
 
 const getUser = async (req, res) => {
     const userID = req.params.uid;
     // console.log(userID);
-    const user = await User.findOne({ _id: userID });
+    const user = await User.findOne({ _id: userID }).select('-password');
 
     // If user doesnt exist
     if(!user) {
@@ -100,11 +80,64 @@ const getUser = async (req, res) => {
     }
 
     res.status(StatusCodes.OK).json({ user : user.toObject({getters: true}) });
+};
+
+const getAllUsers = async (req, res) => {
+    const users = await User.find({}).select('-password');
+    res.status(StatusCodes.OK).json({ users });
+};
+
+const addPersonToGroup = async (req, res) => {
+    const { email } = req.body;
+    const userId = req.params.uid;
+
+    // Find original user
+    const user = await User.findOne({ _id: userId });
+    if(!user) {
+        throw new CustomError.NotFoundError('User not found');
+    }
+
+    const userToBeAdded = await User.findOne({ email });
+    if(!userToBeAdded) {
+        throw new CustomError.NotFoundError('User not found');
+    }
+
+    // Check if userToBeAdded is already in the user's groupPeople field
+    if(user.groupPeople.includes(userToBeAdded._id)) {
+        throw new CustomError.BadRequestError('User already in group');
+    }
+
+    // Check for, cannot add yourself
+    if(user._id.toString() === userToBeAdded._id.toString()) {
+        throw new CustomError.BadRequestError('Cannot add yourself');
+    }
+
+    // Add userToBeAdded in the user's groupPeople field in the database and update user
+
+    user.groupPeople.push(userToBeAdded._id);
+    await user.save();
+
+    res.status(StatusCodes.OK).json({ message: 'User added to group successfully' });
+};
+
+const getEmailsForGroup = async (req, res) => {
+    const userId = req.params.uid;
+    const user = await User.findOne({ _id: userId });
+    if(!user) {
+        throw new CustomError.NotFoundError('User not found');
+    }
+
+    // get emails for each user in the user's groupPeople field
+    const emails = await User.find({ _id: { $in: user.groupPeople } }).select('email');
+    res.status(StatusCodes.OK).json({ emails });
 }
 
 module.exports = {
     register,
-    updateUserImageAndLocation,
-    updateUserInterests,
-    getUser
+    login,
+    logout,
+    getUser,
+    getAllUsers,
+    addPersonToGroup,
+    getEmailsForGroup
 }

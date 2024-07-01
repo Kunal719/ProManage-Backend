@@ -1,8 +1,6 @@
 const express = require('express');
 
-const {register, updateUserImageAndLocation, updateUserInterests, getUser} = require('../controllers/userController');
-const fileUpload = require('../middleware/file-upload');
-
+const {register, login, logout, getUser, getAllUsers, addPersonToGroup, getEmailsForGroup} = require('../controllers/userController');
 const {authenticateUser} = require('../middleware/authentication');
 
 const router = express.Router();
@@ -10,11 +8,22 @@ const router = express.Router();
 // register user
 router.route('/register').post(register);
 
-// update user image and location
-router.route('/:uid').patch(fileUpload.single('image'), authenticateUser, updateUserImageAndLocation)
-                     .get(getUser);
+// login user
+router.route('/login').post(login);
 
-// update interests
-router.route('/interests/:uid').patch(authenticateUser, updateUserInterests);
+// logout user
+router.route('/logout').get(logout);
+
+// get user
+router.route('/:uid').get(getUser);
+
+// get all users
+router.route('/').get(getAllUsers);
+
+// add person to group
+router.route('/:uid/addPersonToGroup').patch(authenticateUser, addPersonToGroup);
+
+// get emails for group people
+router.route('/:uid/getEmailsForGroup').get(authenticateUser, getEmailsForGroup);
 
 module.exports = router;

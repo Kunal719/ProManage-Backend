@@ -7,13 +7,6 @@ const errorHandlerMiddleware = (err, req, res, next) => {
     msg: err.message || 'Something went wrong try again later',
   };
 
-  // delete file if execution fails somehow, for images
-  if (req.file) {
-    fs.unlink(req.file.path, (err) => {
-      // console.log(err);
-    });
-  }
-
   if (err.name === 'ValidationError') {
     customError.msg = Object.values(err.errors)
       .map((item) => item.message)
