@@ -6,14 +6,14 @@ const { checkPermissions } = require('../util');
 
 const createTask = async (req, res) => {
   const { title, priority, assignNow, checklist, dueDate } = req.body;
-  const { userID } = req.user;
+  const { userId } = req.params;
 
   if (!title || !priority || !checklist) {
     throw new CustomError.BadRequestError('Please provide values for mandatory fields');
   }
 
   // Check if user exists (creating user)
-  const creatingUser = await User.findById(userID);
+  const creatingUser = await User.findById(userId);
   if (!creatingUser) {
     throw new CustomError.UnauthenticatedError('User not found');
   }
