@@ -27,6 +27,9 @@ const createTask = async (req, res) => {
     }
   }
 
+  if(checklist.length === 0) {
+    throw new CustomError.BadRequestError('Checklist must have at least one sub-task');
+  }
   // Create the task
   const newTask = await Task.create({
     title,
@@ -85,28 +88,47 @@ const updateTask = async (req, res) => {
   // Check authorization (creator only)
   checkPermissions(req.user, task.createdBy); // Use existing checkPermissions function
 
+  if(updates.checklist.length === 0) {
+    throw new CustomError.BadRequestError('Checklist must have at least one sub-task');
+  }
+
   // Find users to be assigned now (if provided in updates.assignNow)
-  const foundNewAssignedUser =  await User.findOne({ email: updates.assignNow });
-  if (!foundNewAssignedUser) {
-      throw new CustomError.NotFoundError('Assigned user not found');
-    }
+  let foundNewAssignedUser;
+  if (updates.assignNow) {
+    foundNewAssignedUser =  await User.findOne({ email: updates.assignNow });
+    if (!foundNewAssignedUser) {
+        throw new CustomError.NotFoundError('Assigned user not found');
+      }
+  }
 
     // Check if user is already assigned (considering both existing and provided emails)
-    if (task.assignTo.includes(foundNewAssignedUser._id.toString())) {
+    if (foundNewAssignedUser && task.assignTo.includes(foundNewAssignedUser._id.toString())) {
       throw new CustomError.BadRequestError('User is already assigned to this task');
     }
 
   // Update the task (including assignTo if provided)
-  const updatedTask = await Task.findByIdAndUpdate(
-    taskId,
-    { $set: { ...updates, assignTo: [...task.assignTo, foundNewAssignedUser._id]}}, // Update all fields including assignTo
-    { new: true } // Return the updated document
-  );
+  let updatedTask;
+  if (foundNewAssignedUser) {
+    updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      { $set: { ...updates, assignTo: [...task.assignTo, foundNewAssignedUser._id]}}, // Update all fields including assignTo
+      { new: true } // Return the updated document
+    );
+ }
+ else{
+    updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      { $set: { ...updates }}, // Update all fields
+      { new: true } // Return the updated document
+    );
+ }
 
   // Update assigned users' tasks (if assigned users found)
-  await User.findByIdAndUpdate(foundNewAssignedUser._id, {
-        $push: { tasks: updatedTask._id }, // Add task ID to assigned user's tasks
-      })
+  if (foundNewAssignedUser) {
+      await User.findByIdAndUpdate(foundNewAssignedUser._id, {
+            $push: { tasks: updatedTask._id }, // Add task ID to assigned user's tasks
+          })
+    }
 
   res.status(StatusCodes.OK).json({ task: updatedTask });
 };
