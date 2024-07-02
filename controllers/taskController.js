@@ -207,6 +207,11 @@ const deleteTask = async (req, res) => {
     await Promise.all(updatePromises); // Wait for all updates to finish
   }
 
+  // Remove task ID from user who created task
+  await User.findByIdAndUpdate(task.createdBy, {
+    $pull: { tasks: taskId }, // Remove task ID from user's tasks
+  });
+
   res.status(StatusCodes.OK).json({}); // Task deleted successfully (no content)
 };
 
@@ -227,6 +232,30 @@ const getUserTasks = async (req, res) => {
   res.status(StatusCodes.OK).json({ tasks: user.tasks });
 };
 
+const setSubTaskCheck = async (req, res) => {
+  const { taskId } = req.params;
+  const { subTaskId, subTaskDone } = req.body;
+  const user = await User.findById(req.user.userID);
+  if (!user) {
+    throw new CustomError.UnauthenticatedError('User not found');
+  }
+  const task = await Task.findById(taskId);
+  if (!task) {
+    throw new CustomError.NotFoundError('Task not found');
+  }
+  if (checkPermissions(req.user, task.createdBy)) {
+    throw new CustomError.UnauthorizedError('You are not authorized to update this task');
+  }
+
+  const subTask = task.checklist.find(subTask => subTask._id.toString() === subTaskId);
+  if (!subTask) {
+    throw new CustomError.NotFoundError('Sub task not found');
+  }
+  subTask.done = subTaskDone;
+  await task.save();
+  res.status(StatusCodes.OK).json({ subTask });
+}
+
 module.exports = {
   createTask,
   getTask,
@@ -234,4 +263,5 @@ module.exports = {
   deleteTask,
   getUserTasks,
   changeTaskType,
+  setSubTaskCheck
 };

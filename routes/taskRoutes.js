@@ -3,7 +3,7 @@ const router = express.Router();
 
 const {authenticateUser} = require('../middleware/authentication');
 
-const {createTask, getTask, updateTask, deleteTask, getUserTasks, changeTaskType} = require('../controllers/taskController');
+const {createTask, getTask, updateTask, deleteTask, getUserTasks, changeTaskType, setSubTaskCheck} = require('../controllers/taskController');
 
 // create task
 router.route('/:userId/createTask').post(authenticateUser, createTask);
@@ -19,6 +19,9 @@ router.route('/updateTask/:taskId').patch(authenticateUser, updateTask);
 
 // change task type
 router.route('/changeTaskType/:taskId').patch(authenticateUser, changeTaskType);
+
+// change checked sub task
+router.route('/setSubTaskCheck/:taskId').patch(authenticateUser, setSubTaskCheck);
 
 // delete task
 router.route('/deleteTask/:taskId').delete(authenticateUser, deleteTask);
