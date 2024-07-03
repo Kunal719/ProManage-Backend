@@ -1,6 +1,7 @@
 const { StatusCodes } = require('http-status-codes');
 const CustomError = require('../errors');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const { createJWT, createUserToken } = require('../util');
 
 const register = async (req, res) => {
@@ -130,7 +131,62 @@ const getEmailsForGroup = async (req, res) => {
     // get emails for each user in the user's groupPeople field
     const emails = await User.find({ _id: { $in: user.groupPeople } }).select('email');
     res.status(StatusCodes.OK).json({ emails });
-}
+};
+
+const updateUser = async (req, res) => {
+  const userId = req.params.uid; // User ID from request parameters
+
+  const { updatedEmail, name, oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new CustomError.BadRequestError('User not found');
+  }
+
+  // Update Logic
+  let isUpdated = false; // Flag to track if any update happened
+
+  if (updatedEmail !== user.email){
+    // Email Update
+    const existingEmail = await User.findOne({ email: updatedEmail });
+    if (existingEmail && existingEmail._id.toString() !== userId) {
+      throw new CustomError.BadRequestError('Email already exists');
+    }
+    user.email = updatedEmail;
+    isUpdated = true;
+  }
+
+  if (name) {
+    // Name Update (cannot be empty)
+    if (!name) {
+      throw new CustomError.BadRequestError('Name cannot be empty');
+    }
+    user.name = name;
+    isUpdated = true;
+  }
+
+  if (newPassword) {
+    // Password Update
+    if (!oldPassword) {
+      throw new CustomError.BadRequestError('Please provide old password to update');
+    }
+    const isMatch = await user.checkPassword(oldPassword);
+    if (!isMatch) {
+      throw new CustomError.BadRequestError('Incorrect old password');
+    }
+
+    user.password = newPassword;
+    isUpdated = true;
+  }
+
+  // Update user only if there were changes
+  if (isUpdated) {
+    await user.save();
+    res.status(StatusCodes.OK).json({ message: 'User updated successfully' });
+  } else {
+    res.status(StatusCodes.OK).json({ message: 'No changes detected' });
+  }
+};
 
 module.exports = {
     register,
@@ -139,5 +195,6 @@ module.exports = {
     getUser,
     getAllUsers,
     addPersonToGroup,
-    getEmailsForGroup
+    getEmailsForGroup,
+    updateUser
 }

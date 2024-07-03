@@ -254,7 +254,52 @@ const setSubTaskCheck = async (req, res) => {
   subTask.done = subTaskDone;
   await task.save();
   res.status(StatusCodes.OK).json({ subTask });
-}
+};
+
+const getCountOfStatusAndPriority = async (req, res) => {
+  const { userId } = req.params;
+
+  // Check if user exists
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new CustomError.NotFoundError('User not found');
+  }
+
+  // Get user's tasks (populate checklist for dueDate check)
+  const tasks = await Task.find({ createdBy: user._id }).populate('checklist');
+
+  // Initialize count objects
+ const taskTypeCount = {
+    'To do': 0,
+    'Backlog': 0,
+    'In Progress': 0,
+    'Done': 0,
+  };
+  const priorityTypeCount = {
+    'High': 0,
+    'Moderate': 0,
+    'Low': 0,
+  };
+  let dueDateCount = 0;
+  // Count tasks by taskType, priority, and dueDate
+  for (const task of tasks) {
+    taskTypeCount[task.taskType]++;
+    priorityTypeCount[task.priority]++;
+    dueDateCount += task.dueDate ? 1 : 0; // Increment if dueDate exists
+  }
+
+  // Prepare the response object
+  const response = {
+    taskTypeCount,
+    priorityTypeCount,
+    DueDate: dueDateCount,
+  };
+
+  res.status(StatusCodes.OK).json(response);
+};
+
+
+
 
 module.exports = {
   createTask,
@@ -263,5 +308,6 @@ module.exports = {
   deleteTask,
   getUserTasks,
   changeTaskType,
-  setSubTaskCheck
+  setSubTaskCheck,
+  getCountOfStatusAndPriority
 };

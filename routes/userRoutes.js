@@ -1,6 +1,6 @@
 const express = require('express');
 
-const {register, login, logout, getUser, getAllUsers, addPersonToGroup, getEmailsForGroup} = require('../controllers/userController');
+const {register, login, logout, getUser, getAllUsers, addPersonToGroup, getEmailsForGroup, updateUser} = require('../controllers/userController');
 const {authenticateUser} = require('../middleware/authentication');
 
 const router = express.Router();
@@ -13,6 +13,9 @@ router.route('/login').post(login);
 
 // logout user
 router.route('/logout').get(logout);
+
+// update user
+router.route('/updateUser/:uid').patch(authenticateUser, updateUser);
 
 // get user
 router.route('/:uid').get(getUser);
