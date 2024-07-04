@@ -21,7 +21,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: 'http://localhost:5173', // Replace with your actual frontend domain
+    origin: 'https://pro-manage-frontend-wine.vercel.app', // Replace with your actual frontend domain
     credentials: true,
   })
 );
@@ -29,7 +29,7 @@ app.use(
 app.use((req, res, next) => {
   res.setHeader(
     'Access-Control-Allow-Origin',
-    'http://localhost:5173'
+    'https://pro-manage-frontend-wine.vercel.app'
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
