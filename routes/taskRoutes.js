@@ -3,7 +3,15 @@ const router = express.Router();
 
 const {authenticateUser} = require('../middleware/authentication');
 
-const {createTask, getTask, updateTask, deleteTask, getUserTasks, changeTaskType, setSubTaskCheck, getCountOfStatusAndPriority} = require('../controllers/taskController');
+const {createTask,
+       getTask,
+       updateTask,
+       deleteTask,
+       getUserTasks,
+       changeTaskType,
+       setSubTaskCheck,
+       getCountOfStatusAndPriority,
+       getAssigneeEmailsByTask} = require('../controllers/taskController');
 
 // create task
 router.route('/:userId/createTask').post(authenticateUser, createTask);
@@ -25,6 +33,9 @@ router.route('/setSubTaskCheck/:taskId').patch(authenticateUser, setSubTaskCheck
 
 // get count of status and priority
 router.route('/:userId/getStatusPriorityCount').get(authenticateUser, getCountOfStatusAndPriority);
+
+// get assigned emails by task
+router.route('/getAssigneeEmailsByTask/:taskId').get(authenticateUser, getAssigneeEmailsByTask);
 
 // delete task
 router.route('/deleteTask/:taskId').delete(authenticateUser, deleteTask);

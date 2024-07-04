@@ -86,7 +86,7 @@ const updateTask = async (req, res) => {
   }
 
   // Check authorization (creator only)
-  checkPermissions(req.user, task.createdBy); // Use existing checkPermissions function
+  checkPermissions(req.user, task.createdBy);
 
   if(updates.checklist.length === 0) {
     throw new CustomError.BadRequestError('Checklist must have at least one sub-task');
@@ -94,6 +94,7 @@ const updateTask = async (req, res) => {
 
   // Find users to be assigned now (if provided in updates.assignNow)
   let foundNewAssignedUser;
+  // console.log(updates.assignNow);
   if (updates.assignNow) {
     foundNewAssignedUser =  await User.findOne({ email: updates.assignNow });
     if (!foundNewAssignedUser) {
@@ -102,7 +103,7 @@ const updateTask = async (req, res) => {
   }
 
     // Check if user is already assigned (considering both existing and provided emails)
-    if (foundNewAssignedUser && task.assignTo.includes(foundNewAssignedUser._id.toString())) {
+    if (foundNewAssignedUser && task.assignTo.some(assignedUser => assignedUser._id.equals(foundNewAssignedUser._id))) {
       throw new CustomError.BadRequestError('User is already assigned to this task');
     }
 
@@ -243,7 +244,9 @@ const setSubTaskCheck = async (req, res) => {
   if (!task) {
     throw new CustomError.NotFoundError('Task not found');
   }
-  if (checkPermissions(req.user, task.createdBy)) {
+
+  // Only users who created the task or are assigned to task can update it
+  if (!task.assignTo.some(assignedUser => assignedUser._id.toString() === user._id.toString()) && !checkPermissions(user, task.createdBy)) {
     throw new CustomError.UnauthorizedError('You are not authorized to update this task');
   }
 
@@ -298,7 +301,30 @@ const getCountOfStatusAndPriority = async (req, res) => {
   res.status(StatusCodes.OK).json(response);
 };
 
+const getAssigneeEmailsByTask = async (req, res) => {
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  if (!task) {
+    throw new CustomError.NotFoundError('Task not found');
+  }
 
+  // Get all assignee IDs at once
+  const assigneeIds = task.assignTo;
+
+  // Use Promise.all to fetch all assignees concurrently
+  const assignees = await Promise.all(assigneeIds.map(async (assigneeId) => {
+    const assignee = await User.findById(assigneeId);
+    return assignee;
+  }));
+
+  if (!assignees) {
+    return;
+  }
+  // Extract emails from valid assignees
+  const assigneeEmails = assignees.map(assignee => assignee.email);
+
+  res.status(StatusCodes.OK).json({ assigneeEmails });
+};
 
 
 module.exports = {
@@ -309,5 +335,6 @@ module.exports = {
   getUserTasks,
   changeTaskType,
   setSubTaskCheck,
-  getCountOfStatusAndPriority
+  getCountOfStatusAndPriority,
+  getAssigneeEmailsByTask
 };
