@@ -246,7 +246,7 @@ const setSubTaskCheck = async (req, res) => {
   }
 
   // Only users who created the task or are assigned to task can update it
-  if (!task.assignTo.some(assignedUser => assignedUser._id.toString() === user._id.toString()) && !checkPermissions(user, task.createdBy)) {
+  if (!task.assignTo.some(assignedUser => assignedUser._id.toString() === user._id.toString()) && !checkPermissions(req.user, task.createdBy)) {
     throw new CustomError.UnauthorizedError('You are not authorized to update this task');
   }
 
