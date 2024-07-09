@@ -246,9 +246,9 @@ const setSubTaskCheck = async (req, res) => {
   }
 
   // Only users who created the task or are assigned to task can update it
-  if (!task.assignTo.some(assignedUser => assignedUser._id.toString() === user._id.toString()) && !checkPermissions(req.user, task.createdBy)) {
-    throw new CustomError.UnauthorizedError('You are not authorized to update this task');
-  }
+ // if (!task.assignTo.some(assignedUser => assignedUser._id.toString() === user._id.toString()) && !checkPermissions(req.user, task.createdBy)) {
+ //   throw new CustomError.UnauthorizedError('You are not authorized to update this task');
+//  }
 
   const subTask = task.checklist.find(subTask => subTask._id.toString() === subTaskId);
   if (!subTask) {
